@@ -1,0 +1,42 @@
+issuer: "Nom de l'entreprise"
+
+keywords:
+  - "FACTURE PROFORMA"
+  - "DESTINATAIRE"
+
+fields:
+  invoice_number:
+    type: "string"
+    required: true
+    pattern: "FACTURE PROFORMA #\\s*(\\d+)"
+
+  date:
+    type: "date"
+    required: true
+    pattern: "Date de facture:\\s*(\\d{2}/\\d{2}/\\d{4})"
+    format: "%d/%m/%Y"
+
+  due_date:
+    type: "date"
+    required: false
+    pattern: "Échéance:\\s*(\\d{2}/\\d{2}/\\d{4})"
+    format: "%d/%m/%Y"
+
+  amount:
+    type: "float"
+    required: true
+    pattern: "Total TTC\\s*\\n*\\s*([\\d\\s,]+)\\s*€"
+
+  vat:
+    type: "float"
+    required: false
+    pattern: "TVA\\s*\\n*\\s*([\\d\\s,]+)\\s*€"
+
+  currency:
+    type: "string"
+    required: false
+    static: "EUR"
+
+options:
+  remove_whitespace: true
+  currency_locale: fr_FR.UTF-8

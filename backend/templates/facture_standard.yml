@@ -1,0 +1,16 @@
+issuer: "Votre Société"
+keywords:
+  - "Facture"
+fields:
+  dateFacturation:
+    type: date
+    regex: 'Date de facturation\W*(?P<value>\d{2}/\d{2}/\d{4})'
+  echeance:
+    type: date
+    regex: 'Échéance\W*(?P<value>\d{2}/\d{2}/\d{4})'
+  totalTTC:
+    type: amount
+    regex: 'Total\s*TTC\W*(?P<value>[\d\.,]+\s*€)'
+  destinataire:
+    type: text
+    regex: 'Destinataire\W*(?P<value>.+)'
