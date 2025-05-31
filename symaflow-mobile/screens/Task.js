@@ -33,7 +33,7 @@ const Task = () => {
     if (!user) return;
 
     try {
-      const response = await axios.get('http://192.168.1.16:4000/api/taches', {
+      const response = await axios.get('http://192.168.43.154:4000/api/taches', {
         params: {
           assignee: user.name, // Filtrer par assignee
         },
@@ -60,7 +60,7 @@ const Task = () => {
   // Fonction pour mettre à jour le statut d'une tâche
   const updateStatut = async (id, newStatut) => {
     try {
-      await axios.put(`http://192.168.1.16:4000/api/taches/${id}/statut`, {
+      await axios.put(`http://192.168.43.154:4000/api/taches/${id}/statut`, {
         statut: newStatut,
       });
 

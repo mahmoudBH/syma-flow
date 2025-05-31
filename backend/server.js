@@ -16,7 +16,7 @@ const path = require('path');
 const QRCode = require('qrcode');
 const verificationTokens = {}; // Stocker les tokens temporairement
 const moment = require('moment');
-const { exec } = require('child_process');
+const { exec  } = require('child_process');
 
 const http = require('http');
 const WebSocket = require('ws');
@@ -243,6 +243,25 @@ const sendPasswordEmail = (toEmail, userName, tempPassword) => {
 
 
 
+let clients = [];
+
+wss.on('connection', (ws) => {
+  console.log("Client WebSocket connecté");
+  clients.push(ws);
+
+  ws.on('close', () => {
+    console.log("Client WebSocket déconnecté");
+    clients = clients.filter(client => client !== ws);
+  });
+});
+
+function broadcastNotification(message) {
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message));
+    }
+  });
+}
 
 
 // Route pour l'inscription avec hashage
@@ -1000,12 +1019,20 @@ app.post("/api/facture/add", (req, res) => {
 // Endpoint pour ajouter un projet
 app.post('/api/add-project', (req, res) => {
     const { nom, responsable, date_debut, date_fin, budget, description } = req.body;
-    const montant_payer = 0; // Par défaut
-    const statut = "En cours"; // Valeur par défaut
+    const montant_payer = 0;
+    const statut = "En cours"; 
 
     const sql = "INSERT INTO project (nom, responsable, date_debut, date_fin, statut, budget, montant_payer, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     db.query(sql, [nom, responsable, date_debut, date_fin, statut, budget, montant_payer, description], (err, result) => {
         if (err) return res.status(500).json({ error: err.message });
+
+        // Une fois que le projet est ajouté avec succès, envoyez une notification via WebSocket
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(`Un nouveau projet a été ajouté: ${nom}`);
+            }
+        });
+
         res.json({ message: "Projet ajouté avec succès" });
     });
 });
@@ -1301,21 +1328,53 @@ app.put("/api/taches/:id/dependencies", verifyToken, (req, res) => {
  
 // api pour sauvegarder les tâches
 app.post("/api/taches", (req, res) => {
-    const { projet, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin } = req.body;
-  
-    const sql = `
-      INSERT INTO taches (projet, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin)
+  const { projet, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin } = req.body;
+
+  // 1. Récupérer l'ID du projet à partir du nom
+  const getProjectIdSQL = "SELECT id FROM project WHERE nom = ?";
+  db.query(getProjectIdSQL, [projet], (err, rows) => {
+    if (err) {
+      console.error("Erreur récupération projet :", err);
+      return res.status(500).json({ message: "Erreur serveur" });
+    }
+    if (rows.length === 0) {
+      return res.status(400).json({ message: "Projet non trouvé" });
+    }
+    const project_id = rows[0].id;
+
+    // 2. Insertion de la tâche
+    const insertSQL = `
+      INSERT INTO taches
+        (project_id, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-  
-    db.query(sql, [projet, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin], (err, result) => {
+    const params = [project_id, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin];
+
+    db.query(insertSQL, params, (err, result) => {
       if (err) {
-        console.error("Erreur lors de l'ajout de la tâche :", err);
-        return res.status(500).json({ message: "Erreur lors de l'ajout de la tâche." });
+        console.error("Erreur ajout tâche :", err);
+        return res.status(500).json({ message: "Erreur ajout tâche" });
       }
-      res.status(201).json({ message: "Tâche ajoutée avec succès !" });
+
+      // 3. Notifier tous les clients WebSocket
+      const payload = JSON.stringify({
+        type: "new_task",
+        titre,
+        projet,
+        assignee,
+      });
+      wss.clients.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) ws.send(payload);
+      });
+
+      // 4. Répondre au client web
+      res.status(201).json({ message: "Tâche ajoutée avec succès" });
     });
   });
+});
+
+
+
 
 // Route pour récupérer les tâches par assignee
 app.get('/api/taches', (req, res) => {
@@ -1938,44 +1997,122 @@ app.get('/api/project/:id/invoices', verifyToken, (req, res) => {
 
 
 
+
+
+
 // multer config : uploadFacture
-app.post(
-  "/api/invoice/upload",
-  uploadFacture.single("file"),
+app.post("/api/invoice/upload",
   verifyToken,
+  uploadFacture.single("file"),
   (req, res) => {
-    const filename   = req.file.filename;      // ex: '1748532470699-facture_2023103.pdf'
+    if (!req.file) {
+      return res.status(400).json({ error: "Aucun fichier PDF envoyé." });
+    }
+
+    const pdfPath    = path.resolve(req.file.path);
     const projet     = req.body.projet;
     const expediteur = req.user.name;
+    const typeId     = req.body.type;
 
-    // Ajoutez-le aux args si vous l’utilisez dans votre script Python
-    const cmd = `python extract_and_store_ai.py "${req.file.path}" "${projet}" "${expediteur}" "${filename}"`;
+    // Chemin vers votre python.exe (venv) et script
+    const pythonExe  = path.resolve(__dirname, "venv", "Scripts", "python.exe");
+    const scriptPath = path.resolve(__dirname, "extract_and_store_ai.py");
 
-    exec(cmd, { cwd: __dirname }, (err, stdout, stderr) => {
-      if (err) {
-        console.error("❌ AI Extraction error:", stderr || err);
-        return res.status(500).json({ error: stderr || err.message });
+    // Construire la commande (notez les guillemets autour des paths)
+    const cmd = `"${pythonExe}" "${scriptPath}" "${pdfPath}" "${projet}" "${expediteur}" "${typeId}"`;
+
+    exec(cmd, { cwd: __dirname, maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+      // Si Python a crashé
+      if (error) {
+        console.error("❌ AI Extraction error:", stderr || error);
+        return res.status(500).json({
+          error: "Erreur AI lors de l’extraction",
+          details: stderr.trim() || error.message,
+        });
       }
+
+      // On récupère la sortie standard
       const out = stdout.trim();
+      console.log("🔹 Python output:", out);
+
+      // Si votre script renvoie "OK: <id>"
       if (out.startsWith("OK:")) {
         const insertedId = out.split("OK:")[1].trim();
         return res.json({
           message: "Facture extraite et insérée avec succès !",
           id: insertedId,
-          file: filename
         });
-      } else {
-        return res.status(400).json({ error: out });
       }
+
+      // Sinon, extraction partielle ou message d’erreur métier
+      return res.status(400).json({
+        error: "Extraction incomplète ou format inattendu",
+        details: out,
+      });
     });
   }
 );
 
 
-
-
 // ------ Partie Mobile -----
 
+
+
+app.get("/anomalies", (req, res) => {
+  db.query("SELECT * FROM taches", (err, taches) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+
+    const anomalies = [];
+    const today = moment();
+
+    const assigneeMap = {};
+
+    for (let t of taches) {
+      const dateFin = moment(t.dateFin);
+      const dateDebut = moment(t.dateDebut);
+      const joursDepuisDebut = today.diff(dateDebut, "days");
+
+      // 1. Tâche en retard
+      if (today.isAfter(dateFin) && t.statut !== "Terminée") {
+        anomalies.push({
+          type: "Tâche en retard",
+          message: `La tâche '${t.titre}' est en retard.`,
+          tache: t,
+        });
+      }
+
+      // 2. Tâche en attente trop longtemps (3 jours)
+      if (t.statut === "En attente" && joursDepuisDebut > 3) {
+        anomalies.push({
+          type: "Tâche figée",
+          message: `La tâche '${t.titre}' est en attente depuis ${joursDepuisDebut} jours.`,
+          tache: t,
+        });
+      }
+
+      // 3. Compter pour chaque assignee les tâches "Haute" priorité en cours
+      if (!assigneeMap[t.assignee]) assigneeMap[t.assignee] = 0;
+      if (t.priorite === "Haute" && t.statut === "En cours") {
+        assigneeMap[t.assignee]++;
+      }
+    }
+
+    // 4. Vérifier surcharge : +3 tâches haute priorité en cours
+    for (let assignee in assigneeMap) {
+      if (assigneeMap[assignee] > 3) {
+        anomalies.push({
+          type: "Surcharge",
+          message: `${assignee} a ${assigneeMap[assignee]} tâches de haute priorité en cours.`,
+        });
+      }
+    }
+
+    res.json({ anomalies });
+  });
+});
 
 
 // API pour envoyer un message au support
@@ -2088,6 +2225,4 @@ app.post("/logout", (req, res) => {
 
 // Démarrer le serveur
 const PORT = 4000;
-app.listen(PORT, () => {
-    console.log(`Serveur démarré sur le port ${PORT}`);
-});
+server.listen(4000, () => console.log("API + WS sur le port 4000"));

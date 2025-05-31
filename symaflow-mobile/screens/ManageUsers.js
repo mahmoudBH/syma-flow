@@ -22,9 +22,9 @@ const ManageUsers = () => {
   // Fonction pour charger les données depuis l'API
   const fetchData = async () => {
     try {
-      const usersResponse = await axios.get("http://192.168.1.16:4000/users");
-      const categoriesResponse = await axios.get("http://192.168.1.16:4000/categories");
-      const profilesResponse = await axios.get("http://192.168.1.16:4000/profiles");
+      const usersResponse = await axios.get("http://192.168.1.145:4000/users");
+      const categoriesResponse = await axios.get("http://192.168.1.145:4000/categories");
+      const profilesResponse = await axios.get("http://192.168.1.145:4000/profiles");
       setUsers(usersResponse.data);
       setCategories(categoriesResponse.data);
       setProfiles(profilesResponse.data);
@@ -66,7 +66,7 @@ const ManageUsers = () => {
   const handleSubmit = async () => {
     try {
       const response = await axios.put(
-        `http://192.168.1.16:4000/update-user/${selectedUser.id}`,
+        `http://192.168.1.145:4000/update-user/${selectedUser.id}`,
         formData
       );
       Alert.alert("Succès", response.data.message);

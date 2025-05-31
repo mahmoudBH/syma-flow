@@ -43,7 +43,7 @@ const AddTask = () => {
       const userData = await AsyncStorage.getItem("user");
       if (userData) {
         const parsedUser = JSON.parse(userData);
-        const response = await axios.get("http://192.168.1.14:4000/api/projets-rs", {
+        const response = await axios.get("http://192.168.43.154:4000/api/projets-rs", {
           params: {
             responsable: parsedUser.name, // Filtrer par responsable
           },
@@ -103,7 +103,7 @@ const AddTask = () => {
     };
 
     axios
-      .post("http://192.168.1.16:4000/api/taches", nouvelleTache)
+      .post("http://192.168.43.154:4000/api/taches", nouvelleTache)
       .then(() => {
         Alert.alert("Succès", "Tâche ajoutée avec succès !");
         // Réinitialiser le formulaire

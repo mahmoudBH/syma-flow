@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Logout = ({ setIsLoggedIn }) => {
   const handleLogout = async () => {
     try {
-      const response = await fetch('http://192.168.1.16:4000/api/logout', {
+      const response = await fetch('http://192.168.43.154:4000/api/logout', {
         method: 'POST',
         credentials: 'include',
       });

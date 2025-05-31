@@ -37,12 +37,12 @@ const ProjectScreen = () => {
     if (!user) return;
     try {
       const [projetsResponse, usersResponse] = await Promise.all([
-        axios.get('http://192.168.1.16:4000/api/projets-rs', {
+        axios.get('http://192.168.43.154:4000/api/projets-rs', {
           params: {
             responsable: user.name,
           },
         }),
-        axios.get('http://192.168.1.16:4000/users'),
+        axios.get('http://192.168.43.154:4000/users'),
       ]);
       setProjets(projetsResponse.data);
       setUsers(usersResponse.data);
@@ -71,7 +71,7 @@ const ProjectScreen = () => {
       role: user.profile,
     }));
     axios
-      .post(`http://192.168.1.16:4000/projets/${projectId}/ajouter-equipe`, { equipe })
+      .post(`http://192.168.43.154:4000/projets/${projectId}/ajouter-equipe`, { equipe })
       .then((response) => {
         Alert.alert('Succès', 'Équipe ajoutée avec succès !');
         setShowAddTeam(false);

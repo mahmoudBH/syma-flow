@@ -16,7 +16,7 @@ const LoginScreen = ({ navigation, onRefresh }) => {
         setLoading(true);
 
         try {
-            const response = await fetch("http://192.168.1.14:4000/login", {
+            const response = await fetch("http://192.168.43.154:4000/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),

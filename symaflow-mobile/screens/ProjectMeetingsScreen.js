@@ -21,7 +21,7 @@ const AjouterReunionScreen = ({ navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true); // Activer l'indicateur de rafraîchissement
     try {
-      const response = await axios.get("http://192.168.1.16:4000/api/projets-rs");
+      const response = await axios.get("http://192.168.1.145:4000/api/projets-rs");
       setProjets(response.data);
     } catch (error) {
       console.error("Erreur lors de la récupération des projets:", error);
@@ -34,7 +34,7 @@ const AjouterReunionScreen = ({ navigation }) => {
   useEffect(() => {
     const fetchProjets = async () => {
       try {
-        const response = await axios.get("http://192.168.1.16:4000/api/projets-rs");
+        const response = await axios.get("http://192.168.1.145:4000/api/projets-rs");
         setProjets(response.data);
       } catch (error) {
         console.error("Erreur lors de la récupération des projets:", error);
@@ -89,7 +89,7 @@ const AjouterReunionScreen = ({ navigation }) => {
           .map(membre => ({ id: membre.id, name: membre.name }))
       );
 
-      const response = await axios.post("http://192.168.1.16:4000/api/ajouter-reunion", {
+      const response = await axios.post("http://192.168.43.154:4000/api/ajouter-reunion", {
         id_project: selectedProject,
         titre,
         date_reunion: selectedDate,

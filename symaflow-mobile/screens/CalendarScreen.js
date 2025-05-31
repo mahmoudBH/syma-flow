@@ -19,11 +19,11 @@ const CalendarScreen = () => {
       const assignee = user.name;
 
       // Récupérer les tâches
-      const tasksResponse = await fetch(`http://192.168.1.16:4000/api/taches?assignee=${assignee}`);
+      const tasksResponse = await fetch(`http://192.168.43.154:4000/api/taches?assignee=${assignee}`);
       const tasksData = await tasksResponse.json();
 
       // Récupérer les réunions
-      const reunionsResponse = await fetch(`http://192.168.1.16:4000/api/reunions`);
+      const reunionsResponse = await fetch(`http://192.168.43.154:4000/api/reunions`);
       const reunionsData = await reunionsResponse.json();
 
       // Convertir les participants JSON en tableau JavaScript

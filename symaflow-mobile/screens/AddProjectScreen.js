@@ -20,7 +20,7 @@ const AddProjectScreen = ({ navigation }) => {
   // Fonction pour charger les administrateurs depuis l'API
   const fetchAdmins = async () => {
     try {
-      const response = await axios.get("http://192.168.1.16:4000/api/admins");
+      const response = await axios.get("http://192.168.43.154:4000/api/admins");
       setAdmins(response.data);
     } catch (error) {
       console.error("Erreur lors du chargement des admins", error);
@@ -52,7 +52,7 @@ const AddProjectScreen = ({ navigation }) => {
     }
 
     try {
-      await axios.post("http://192.168.1.16:4000/api/add-project", formData);
+      await axios.post("http://192.168.43.154:4000/api/add-project", formData);
       Alert.alert("Succès", "Projet ajouté avec succès !");
       setFormData({
         nom: "",

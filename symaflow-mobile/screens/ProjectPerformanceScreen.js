@@ -20,7 +20,7 @@ const ProjectPerformanceScreen = () => {
       const user = JSON.parse(userData);
       const responsable = user.name;
 
-      const response = await fetch(`http://192.168.1.16:4000/api/projets-rs?responsable=${responsable}`);
+      const response = await fetch(`http://192.168.43.154:4000/api/projets-rs?responsable=${responsable}`);
       if (!response.ok) throw new Error("Erreur lors de la récupération des projets");
 
       const data = await response.json();

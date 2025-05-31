@@ -27,10 +27,14 @@ import { ThemeProvider } from "./components/context/ThemeProvider";
 import UploadAndSignPdf from "./components/pages/Fracture/UploadAndSignPdf"; // Assurez-vous que le chemin est correct
 import GanttPage from "./components/pages/Project/Gantt"; // Nouvelle page
 import TasksPage from './components/pages/Project/TasksPage'; // Importez le composant TasksPage
+import { WebSocketProvider, WebSocketContext } from "./components/context/WebSocketContext";
+import NotificationListener from "./components/context/NotificationListener"
 
 const App = () => {
   return (
     <Router>
+      <WebSocketProvider>
+        <NotificationListener />
       <ThemeProvider>
         <Routes>
           {/* Rediriger vers /login par défaut */}
@@ -72,6 +76,7 @@ const App = () => {
           </Route>
         </Routes>
       </ThemeProvider>
+      </WebSocketProvider>
     </Router>
   );
 };
