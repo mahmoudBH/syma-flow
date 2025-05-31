@@ -93,36 +93,57 @@ const App = () => {
   };
 
   // Effet initial & foreground
-  useEffect(() => {
-    fetchUser();
-    const sub = AppState.addEventListener("change", (state) => state === "active" && fetchUser());
-    return () => sub.remove();
-  }, []);
+    useEffect(() => {
+      fetchUser();
+      const sub = AppState.addEventListener("change", (state) => state === "active" && fetchUser());
+      return () => sub.remove();
+    }, []);
 
-  // WebSocket pour notifications de nouvelle tâche
+    // WebSocket pour notifications de nouvelle tâche
   useEffect(() => {
     const ws = new WebSocket("ws://192.168.43.154:4000");
-    ws.onopen = () => console.log("WS connecté");
+
+    ws.onopen = async () => {
+      console.log("WebSocket connecté");
+
+      // On récupère le user actuel dans AsyncStorage
+      const raw = await AsyncStorage.getItem("user");
+      const u = raw ? JSON.parse(raw) : null;
+      if (u && u.name) {
+        // Envoie le message d'enregistrement
+        ws.send(JSON.stringify({ type: "register", user: u.name }));
+      }
+    };
+
     ws.onmessage = async ({ data }) => {
       try {
         const msg = JSON.parse(data);
         if (msg.type === "new_task") {
           // Jouer un son
-          const { sound } = await Audio.Sound.createAsync(require("./assets/notification-iphone.mp3"));
+          const { sound } = await Audio.Sound.createAsync(
+            require("./assets/rabi3-bouden.mp3")
+          );
           setSound(sound);
           await sound.playAsync();
-          // Afficher notification locale
+          // Afficher la notification locale
           await Notifications.presentNotificationAsync({
             title: "Nouvelle tâche",
-            body: `${msg.titre} (${msg.projet})`,
+            body: `${msg.titre} (Projet: ${msg.projet})`,
           });
         }
-      } catch {
+      } catch (err) {
         console.warn("Message WS non JSON:", data);
       }
     };
-    ws.onerror = (e) => console.error("WS erreur", e.message);
-    ws.onclose = () => console.log("WS fermé");
+
+    ws.onerror = (e) => {
+      console.error("WS erreur", e.message);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket fermé");
+    };
+
     return () => {
       ws.close();
       if (sound) sound.unloadAsync();

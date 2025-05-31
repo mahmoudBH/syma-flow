@@ -22,6 +22,8 @@ const http = require('http');
 const WebSocket = require('ws');
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server }); // Crée le serveur WebSocket
+// Pour stocker la correspondance { username: WebSocketClient }
+const wsClients = new Map();
 
 
 // Middleware pour parser les requêtes JSON
@@ -120,23 +122,35 @@ db.connect(err => {
 });
 
 
-wss.on('connection', (ws) => {
-  console.log('Un client est connecté');
+// Gérer chaque nouvelle connexion WS
+wss.on("connection", (ws) => {
+  console.log("Nouveau client WS connecté");
 
-  // Vous pouvez envoyer un message au client (React Native) quand il est connecté
-  ws.send('Connexion établie');
-
-  // Écoute des messages envoyés par le client
-  ws.on('message', (message) => {
-      console.log('Message reçu du client: ', message);
+  // À la réception d’un message, attendre l’enregistrement de l’utilisateur
+  ws.on("message", (message) => {
+    try {
+      const payload = JSON.parse(message);
+      // Si c’est un message d’enregistrement, garder en mémoire le WS
+      if (payload.type === "register" && payload.user) {
+        wsClients.set(payload.user, ws);
+        console.log(`WS client enregistré pour utilisateur : ${payload.user}`);
+      }
+    } catch (err) {
+      console.error("Erreur parsing WS message:", err);
+    }
   });
 
-  // Déconnexion du client
-  ws.on('close', () => {
-      console.log('Client déconnecté');
+  ws.on("close", () => {
+    // Nettoyer la Map : chercher la clé dont la valeur est ce WS et la supprimer
+    for (const [user, clientWs] of wsClients.entries()) {
+      if (clientWs === ws) {
+        wsClients.delete(user);
+        console.log(`WS pour utilisateur supprimé: ${user}`);
+        break;
+      }
+    }
   });
 });
-
 
 // Table de blacklist pour les tokens invalidés
 let blacklist = []; // À utiliser en mémoire, mais vous pouvez aussi utiliser une base de données
@@ -1330,48 +1344,53 @@ app.put("/api/taches/:id/dependencies", verifyToken, (req, res) => {
 app.post("/api/taches", (req, res) => {
   const { projet, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin } = req.body;
 
-  // 1. Récupérer l'ID du projet à partir du nom
+  // 1. Récupérer l'ID du projet à partir de son nom
   const getProjectIdSQL = "SELECT id FROM project WHERE nom = ?";
   db.query(getProjectIdSQL, [projet], (err, rows) => {
     if (err) {
       console.error("Erreur récupération projet :", err);
-      return res.status(500).json({ message: "Erreur serveur" });
+      return res.status(500).json({ message: "Erreur serveur." });
     }
     if (rows.length === 0) {
-      return res.status(400).json({ message: "Projet non trouvé" });
+      return res.status(400).json({ message: "Projet non trouvé." });
     }
     const project_id = rows[0].id;
 
-    // 2. Insertion de la tâche
-    const insertSQL = `
+    // 2. Insérer la tâche
+    const insertTacheSQL = `
       INSERT INTO taches
         (project_id, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const params = [project_id, expediteur, assignee, titre, description, priorite, statut, dateDebut, dateFin];
 
-    db.query(insertSQL, params, (err, result) => {
+    db.query(insertTacheSQL, params, (err, result) => {
       if (err) {
         console.error("Erreur ajout tâche :", err);
-        return res.status(500).json({ message: "Erreur ajout tâche" });
+        return res.status(500).json({ message: "Erreur ajout tâche." });
       }
 
-      // 3. Notifier tous les clients WebSocket
+      // 3. Construire le payload de notification uniquement pour l'assignee
       const payload = JSON.stringify({
         type: "new_task",
         titre,
         projet,
         assignee,
       });
-      wss.clients.forEach(ws => {
-        if (ws.readyState === WebSocket.OPEN) ws.send(payload);
-      });
 
-      // 4. Répondre au client web
-      res.status(201).json({ message: "Tâche ajoutée avec succès" });
+      // 4. Envoyer via WS au client identifié par `assignee`
+      const targetWs = wsClients.get(assignee);
+      if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        targetWs.send(payload);
+      }
+      // Sinon, l'utilisateur mobile n'est pas connecté: vous pouvez stocker la notif en BDD ou ignorer.
+
+      // 5. Répondre à la requête REST du client web
+      res.status(201).json({ message: "Tâche ajoutée avec succès !" });
     });
   });
 });
+
 
 
 

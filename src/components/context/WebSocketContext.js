@@ -7,14 +7,17 @@ export const WebSocketProvider = ({ children }) => {
   const [ws, setWs] = useState(null);
 
   useEffect(() => {
-    // adapte l'URL si tu as un path spécifique
+    // Ouvre la connexion WS dès que le Provider est monté
     const socket = new WebSocket("ws://localhost:4000");
-    socket.onopen = () => console.log("WS connecté");
-    socket.onerror = (err) => console.error("WS erreur", err);
-    socket.onclose = () => console.log("WS fermé");
-
     setWs(socket);
-    return () => socket.close();
+
+    // En cas de déconnexion / erreur, tu peux tenter une reconnexion si besoin
+    socket.onclose = () => console.log("WSProvider : WS fermé");
+    socket.onerror = (e) => console.error("WSProvider : erreur WS", e);
+
+    return () => {
+      socket.close();
+    };
   }, []);
 
   return (
