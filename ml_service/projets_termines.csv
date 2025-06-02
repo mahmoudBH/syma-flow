@@ -1,0 +1,3 @@
+project_id,project_name,budget,montant_payer,nb_taches_total,nb_taches_terminees,duree_prevue_moyenne,duree_reelle_projet
+3,SymaFlow,998.0,0.0,16,2.0,5.5,11
+4,Application Web Full Stack,15000.0,5000.0,10,0.0,10.2,97

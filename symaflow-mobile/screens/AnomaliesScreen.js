@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 
 export default function AnomaliesScreen() {
   const [anomalies, setAnomalies] = useState([]);
@@ -32,6 +38,14 @@ export default function AnomaliesScreen() {
     </View>
   );
 
+  const renderHeader = () => (
+    <Text style={styles.title}>Anomalies détectées</Text>
+  );
+
+  const renderEmpty = () => (
+    <Text style={styles.empty}>Aucune anomalie détectée.</Text>
+  );
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -41,35 +55,50 @@ export default function AnomaliesScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={anomalies}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        ListHeaderComponent={
-          <Text style={styles.title}>Anomalies détectées</Text>
-        }
-        ListEmptyComponent={
-          <Text style={styles.empty}>Aucune anomalie détectée.</Text>
-        }
-        contentContainerStyle={
-          anomalies.length === 0 ? styles.center : null
-        }
-      />
-    </View>
+    <FlatList
+      data={anomalies}
+      keyExtractor={(item, index) => index.toString()}
+      renderItem={renderItem}
+      ListHeaderComponent={renderHeader}
+      ListEmptyComponent={renderEmpty}
+      contentContainerStyle={
+        anomalies.length === 0 ? styles.center : styles.contentContainer
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 12 },
-  empty: { fontSize: 16, color: "#777", marginTop: 20 },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  empty: {
+    fontSize: 16,
+    color: "#777",
+    marginTop: 20,
+    textAlign: "center",
+  },
   card: {
     backgroundColor: "#f2f2f2",
     padding: 12,
     borderRadius: 8,
     marginVertical: 6,
   },
-  type: { fontWeight: "bold", color: "#d32f2f", marginBottom: 4 },
+  type: {
+    fontWeight: "bold",
+    color: "#d32f2f",
+    marginBottom: 4,
+  },
 });

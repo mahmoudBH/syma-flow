@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  RefreshControl,
+} from "react-native";
 import { Calendar } from "react-native-calendars";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -7,9 +14,9 @@ const CalendarScreen = () => {
   const [selectedDate, setSelectedDate] = useState("");
   const [events, setEvents] = useState({});
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false); // État pour le rafraîchissement
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Fonction pour charger les données utilisateur et les événements
+  // Charger l'utilisateur et récupérer tâches + réunions
   const fetchUserData = async () => {
     try {
       const userData = await AsyncStorage.getItem("user");
@@ -18,51 +25,96 @@ const CalendarScreen = () => {
       const user = JSON.parse(userData);
       const assignee = user.name;
 
-      // Récupérer les tâches
-      const tasksResponse = await fetch(`http://192.168.43.154:4000/api/taches?assignee=${assignee}`);
+      // 1. Récupérer les tâches dont on est l'assignee
+      const tasksResponse = await fetch(
+        `http://192.168.43.154:4000/api/taches?assignee=${encodeURIComponent(
+          assignee
+        )}`
+      );
       const tasksData = await tasksResponse.json();
 
-      // Récupérer les réunions
-      const reunionsResponse = await fetch(`http://192.168.43.154:4000/api/reunions`);
+      // 2. Récupérer toutes les réunions (incluant le champ 'responsable')
+      const reunionsResponse = await fetch(
+        `http://192.168.43.154:4000/api/reunions`
+      );
       const reunionsData = await reunionsResponse.json();
 
-      // Convertir les participants JSON en tableau JavaScript
-      const reunionsWithParsedParticipants = reunionsData.map(reunion => ({
-        ...reunion,
-        participants: reunion.participants ? JSON.parse(reunion.participants) : [],
-      }));
-
-      // Filtrer les réunions où l'utilisateur est un participant
-      const filteredReunions = reunionsWithParsedParticipants.filter(reunion => {
-        if (Array.isArray(reunion.participants)) {
-          return reunion.participants.some(participant => participant.name === assignee);
+      // 3. Parser le JSON stocké dans `participants` et filtrer uniquement
+      //    celles où l'utilisateur figure dans participants OR est responsable.
+      const reunionsWithParsed = reunionsData.map((r) => {
+        let participantsArray = [];
+        try {
+          participantsArray = r.participants ? JSON.parse(r.participants) : [];
+        } catch {
+          participantsArray = [];
         }
-        return false;
+        return {
+          ...r,
+          participants: participantsArray,
+          // `responsable` est déjà présent grâce à la jointure dans l’API
+        };
       });
 
-      // Fusionner les tâches et les réunions
+      const filteredReunions = reunionsWithParsed.filter((r) => {
+        // Si l'utilisateur est dans la liste `participants`
+        const inParticipants = Array.isArray(r.participants)
+          ? r.participants.some((p) => p.name === assignee)
+          : false;
+        // OU si l'utilisateur est le responsable du projet
+        const isResponsable = r.responsable === assignee;
+        return inParticipants || isResponsable;
+      });
+
+      // 4. Construire l'objet `formattedEvents` en fusionnant tâches + réunions
       const formattedEvents = {};
-      [...tasksData, ...filteredReunions].forEach(event => {
-        const startDate = event.date_reunion ? event.date_reunion.split("T")[0] : null; // Utiliser date_reunion pour les réunions
-        const endDate = event.dateFin ? event.dateFin.split("T")[0] : null;
+      // 4a. Traiter d'abord les tâches
+      tasksData.forEach((task) => {
+        const startDate = task.dateDebut
+          ? task.dateDebut.split("T")[0]
+          : null;
+        const endDate = task.dateFin
+          ? task.dateFin.split("T")[0]
+          : null;
 
         if (startDate) {
           if (!formattedEvents[startDate]) formattedEvents[startDate] = [];
           formattedEvents[startDate].push({
-            name: event.titre,
-            type: event.participants ? "reunion" : "task", // Distinction entre réunion et tâche
-            priority: event.priorite || "Moyenne",
-            status: event.statut || "En attente",
+            name: task.titre,
+            type: "task",
+            priority: task.priorite || "Moyenne",
+            status: task.statut || "En attente",
+            // Pas de responsable pour une tâche ici
           });
         }
-
-        if (endDate && startDate !== endDate) {
+        // Si dateFin existe et diffère de dateDebut, on ajoute un deuxième événement
+        if (endDate && endDate !== startDate) {
           if (!formattedEvents[endDate]) formattedEvents[endDate] = [];
           formattedEvents[endDate].push({
-            name: event.titre,
-            type: event.participants ? "reunion" : "task",
-            priority: event.priorite || "Moyenne",
-            status: event.statut || "En attente",
+            name: task.titre,
+            type: "task",
+            priority: task.priorite || "Moyenne",
+            status: task.statut || "En attente",
+          });
+        }
+      });
+
+      // 4b. Traiter ensuite les réunions filtrées
+      filteredReunions.forEach((reunion) => {
+        // On récupère date_reunion sous forme ISO ("YYYY-MM-DDTHH:mm:ss.sssZ")
+        // On en garde uniquement la partie date
+        const startDate = reunion.date_reunion
+          ? reunion.date_reunion.split("T")[0]
+          : null;
+        // Pas de dateFin pour les réunions, donc on n'en tient pas compte ici
+
+        if (startDate) {
+          if (!formattedEvents[startDate]) formattedEvents[startDate] = [];
+          formattedEvents[startDate].push({
+            name: reunion.titre,
+            type: "reunion",
+            priority: null, // Optionnel, pas de priorité pour une réunion
+            status: null,
+            responsible: reunion.responsable, // On ajoute le responsable ici
           });
         }
       });
@@ -79,25 +131,25 @@ const CalendarScreen = () => {
     fetchUserData();
   }, []);
 
-  // Gestion du rafraîchissement
+  // Rafraîchissement manuel
   const onRefresh = async () => {
-    setRefreshing(true); // Activer l'indicateur de rafraîchissement
-    await fetchUserData(); // Recharger les données
-    setRefreshing(false); // Désactiver l'indicateur de rafraîchissement
+    setRefreshing(true);
+    await fetchUserData();
+    setRefreshing(false);
   };
 
-  // Définir la couleur des événements
+  // Couleur selon type/priorité
   const getEventColor = (type, priority) => {
-    if (type === "reunion") return "#007BFF"; // Bleu pour les réunions
-    switch (priority.toLowerCase()) {
+    if (type === "reunion") return "#007BFF"; // bleu pour réunion
+    switch ((priority || "").toLowerCase()) {
       case "haute":
-        return "#FF5733"; // Rouge vif pour les tâches
+        return "#FF5733"; // rouge pour tâche prioritaire
       case "moyenne":
-        return "#FFC300"; // Jaune doré
+        return "#FFC300"; // jaune
       case "basse":
-        return "#4CAF50"; // Vert clair
+        return "#4CAF50"; // vert
       default:
-        return "#28a745"; // Vert intense
+        return "#28a745";
     }
   };
 
@@ -109,6 +161,7 @@ const CalendarScreen = () => {
         <ActivityIndicator size="large" color="#28a745" />
       ) : (
         <>
+          {/* Calendrier avec points marqués */}
           <Calendar
             onDayPress={(day) => setSelectedDate(day.dateString)}
             markedDates={{
@@ -116,7 +169,11 @@ const CalendarScreen = () => {
                 acc[date] = { marked: true, dotColor: "#28a745" };
                 return acc;
               }, {}),
-              [selectedDate]: { selected: true, selectedColor: "#28a745" },
+              [selectedDate]: {
+                ...(events[selectedDate]
+                  ? { selected: true, selectedColor: "#28a745" }
+                  : {}),
+              },
             }}
             theme={{
               arrowColor: "#28a745",
@@ -127,38 +184,48 @@ const CalendarScreen = () => {
             }}
           />
 
+          {/* Liste des événements pour la date sélectionnée */}
           <ScrollView
             style={styles.eventContainer}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#28a745']} // Couleur de l'indicateur de rafraîchissement
-                tintColor={'#28a745'}
+                colors={["#28a745"]}
+                tintColor={"#28a745"}
               />
             }
           >
             <Text style={styles.subtitle}>
               📌 Événements du {selectedDate || "jour sélectionné"}
             </Text>
-            {events[selectedDate]?.length ? (
+
+            {events[selectedDate] && events[selectedDate].length > 0 ? (
               events[selectedDate].map((event, index) => (
                 <View
                   key={index}
                   style={[
                     styles.eventItem,
-                    { backgroundColor: getEventColor(event.type, event.priority) },
+                    {
+                      backgroundColor: getEventColor(event.type, event.priority),
+                    },
                   ]}
                 >
                   <Text style={styles.eventText}>
-                    {event.type === "reunion" ? "🎉 Réunion : " : "📋 Tâche : "}
+                    {event.type === "reunion"
+                      ? "🎉 Réunion : "
+                      : "📋 Tâche : "}
                     {event.name}
                   </Text>
-                  <Text style={styles.eventStatus}>
-                    {event.type === "reunion"
-                      ? "👥 Participants inclus"
-                      : `🟢 ${event.status}`}
-                  </Text>
+                  {event.type === "reunion" && event.responsible ? (
+                    <Text style={styles.eventResponsible}>
+                      👤 Responsable : {event.responsible}
+                    </Text>
+                  ) : (
+                    <Text style={styles.eventStatus}>
+                      🟢 {event.status}
+                    </Text>
+                  )}
                 </View>
               ))
             ) : (
@@ -171,7 +238,6 @@ const CalendarScreen = () => {
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -187,6 +253,12 @@ const styles = StyleSheet.create({
     textShadowColor: "#BDC3C7",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
+  },
+  subtitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#2C3E50",
+    marginVertical: 10,
   },
   eventContainer: {
     backgroundColor: "#FFFFFF",
@@ -214,6 +286,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   eventStatus: {
+    fontSize: 14,
+    fontStyle: "italic",
+    color: "#FFFFFF",
+    marginTop: 5,
+  },
+  eventResponsible: {
     fontSize: 14,
     fontStyle: "italic",
     color: "#FFFFFF",

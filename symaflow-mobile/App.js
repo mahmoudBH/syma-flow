@@ -46,12 +46,14 @@ const App = () => {
   const [drawerKey, setDrawerKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Charger l'utilisateur et configurer les écrans
+  // 1️⃣ Charger l'utilisateur et configurer les écrans
   const fetchUser = async () => {
     try {
       const raw = await AsyncStorage.getItem("user");
       const u = raw ? JSON.parse(raw) : null;
       setUser(u);
+
+      // Bien vérifier qu'il n'y a plus d'espace dans les noms !
       const screensByCategory = {
         Admin: [
           { name: "Home", component: HomeScreen },
@@ -64,7 +66,7 @@ const App = () => {
           { name: "Manage Users", component: ManageUsers },
           { name: "Calendrier", component: CalendarScreen },
           { name: "project performance", component: ProjectPerformanceScreen },
-          { name: "Anomalies", component: AnomaliesScreen },
+          { name: "Anomalies", component: AnomaliesScreen }, // ← plus d'espace ici
         ],
         Utilisateur: [
           { name: "Home", component: HomeScreen },
@@ -75,7 +77,12 @@ const App = () => {
           { name: "project performance", component: ProjectPerformanceScreen },
         ],
       };
-      setAllowedScreens(u?.category ? screensByCategory[u.category] : screensByCategory.Utilisateur);
+
+      setAllowedScreens(
+        u?.category
+          ? screensByCategory[u.category]
+          : screensByCategory.Utilisateur
+      );
     } catch (e) {
       console.error(e);
       setAllowedScreens([{ name: "Home", component: HomeScreen }]);
@@ -85,32 +92,34 @@ const App = () => {
     }
   };
 
-  // Rafraîchissement global
+  // 2️⃣ Rafraîchissement global
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchUser();
     setRefreshing(false);
   };
 
-  // Effet initial & foreground
-    useEffect(() => {
-      fetchUser();
-      const sub = AppState.addEventListener("change", (state) => state === "active" && fetchUser());
-      return () => sub.remove();
-    }, []);
+  // 3️⃣ Effet initial & foreground
+  useEffect(() => {
+    fetchUser();
+    const sub = AppState.addEventListener(
+      "change",
+      (state) => state === "active" && fetchUser()
+    );
+    return () => sub.remove();
+  }, []);
 
-    // WebSocket pour notifications de nouvelle tâche
+  // 4️⃣ WebSocket pour notifications ciblées
   useEffect(() => {
     const ws = new WebSocket("ws://192.168.43.154:4000");
 
     ws.onopen = async () => {
       console.log("WebSocket connecté");
 
-      // On récupère le user actuel dans AsyncStorage
+      // Dès l'ouverture, on « register » l'utilisateur actif
       const raw = await AsyncStorage.getItem("user");
       const u = raw ? JSON.parse(raw) : null;
       if (u && u.name) {
-        // Envoie le message d'enregistrement
         ws.send(JSON.stringify({ type: "register", user: u.name }));
       }
     };
@@ -119,19 +128,18 @@ const App = () => {
       try {
         const msg = JSON.parse(data);
         if (msg.type === "new_task") {
-          // Jouer un son
+          // Jouer un son puis déclencher notification locale
           const { sound } = await Audio.Sound.createAsync(
             require("./assets/rabi3-bouden.mp3")
           );
           setSound(sound);
           await sound.playAsync();
-          // Afficher la notification locale
           await Notifications.presentNotificationAsync({
             title: "Nouvelle tâche",
             body: `${msg.titre} (Projet: ${msg.projet})`,
           });
         }
-      } catch (err) {
+      } catch {
         console.warn("Message WS non JSON:", data);
       }
     };
@@ -150,52 +158,79 @@ const App = () => {
     };
   }, [sound]);
 
-  // Permissions notifications
+  // 5️⃣ Permissions pour notifications
   useEffect(() => {
     Notifications.requestPermissionsAsync();
-    Notifications.getExpoPushTokenAsync().then((t) => console.log("Push token:", t));
+    Notifications.getExpoPushTokenAsync().then((t) =>
+      console.log("Push token:", t)
+    );
   }, []);
 
   if (loading) {
-    return <View style={styles.loading}><ActivityIndicator size="large" color="#0000ff" /></View>;
-  }
-
-  const CustomDrawer = ({ navigation }) => {
-    const { refreshing, onRefresh } = React.useContext(RefreshContext);
-    const screens = allowedScreens.length ? allowedScreens : [{ name: "Home", component: HomeScreen }];
     return (
-      <View style={styles.drawerContainer}>
-        <View style={styles.drawerHeader}><Text style={styles.drawerTitle}>SymaFlow</Text></View>
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#5E72E4"]} tintColor="#5E72E4" />}
-        >
-          <Drawer.Navigator
-            screenOptions={{
-              headerShown: false,
-              drawerStyle: styles.drawerStyle,
-              drawerActiveTintColor: '#5E72E4',
-              drawerInactiveTintColor: '#495057',
-              drawerLabelStyle: styles.drawerLabel,
-              sceneContainerStyle: { backgroundColor: '#F8F9FA' }
-            }}
-          >
-            {screens.map((s, i) => (
-              <Drawer.Screen key={i} name={s.name} component={s.component} />
-            ))}
-          </Drawer.Navigator>
-        </ScrollView>
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
-  };
+  }
+
+  // 6️⃣ CustomDrawer avec .trim() pour eviter les espaces
+  const CustomDrawer = ({ navigation }) => {
+  const { refreshing, onRefresh } = React.useContext(RefreshContext);
+  const screens = allowedScreens.length
+    ? allowedScreens
+    : [{ name: "Home", component: HomeScreen }];
+
+  return (
+    <View style={styles.drawerContainer}>
+      <View style={styles.drawerHeader}>
+        <Text style={styles.drawerTitle}>SymaFlow</Text>
+      </View>
+
+      {/* ❌ On supprime ScrollView ici */}
+
+      <Drawer.Navigator
+        screenOptions={{
+          headerShown: false,
+          drawerStyle: styles.drawerStyle,
+          drawerActiveTintColor: "#5E72E4",
+          drawerInactiveTintColor: "#495057",
+          drawerLabelStyle: styles.drawerLabel,
+          sceneContainerStyle: { backgroundColor: "#F8F9FA" },
+        }}
+      >
+        {screens.map((s, i) => {
+          const screenName = s.name.trim();
+          return (
+            <Drawer.Screen
+              key={i}
+              name={screenName}
+              component={s.component}
+            />
+          );
+        })}
+      </Drawer.Navigator>
+    </View>
+  );
+};
+
 
   return (
     <SafeAreaProvider>
       <RefreshContext.Provider value={{ refreshing, onRefresh }}>
         <NavigationContainer>
           <Stack.Navigator initialRouteName="Login">
-            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Drawer" component={CustomDrawer} key={drawerKey} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Drawer"
+              component={CustomDrawer}
+              key={drawerKey}
+              options={{ headerShown: false }}
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </RefreshContext.Provider>
@@ -204,12 +239,22 @@ const App = () => {
 };
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  drawerContainer: { flex: 1, backgroundColor: '#F8F9FA' },
-  drawerHeader: { backgroundColor: '#FFF', padding: 20, borderBottomWidth: 1, borderBottomColor: '#E9ECEF' },
-  drawerTitle: { fontSize: 24, fontWeight: '700', color: '#5E72E4', textAlign: 'center' },
-  drawerStyle: { backgroundColor: '#FFF', width: 240 },
-  drawerLabel: { fontSize: 16, fontWeight: '500', marginLeft: -8 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+  drawerContainer: { flex: 1, backgroundColor: "#F8F9FA" },
+  drawerHeader: {
+    backgroundColor: "#FFF",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E9ECEF",
+  },
+  drawerTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#5E72E4",
+    textAlign: "center",
+  },
+  drawerStyle: { backgroundColor: "#FFF", width: 240 },
+  drawerLabel: { fontSize: 16, fontWeight: "500", marginLeft: -8 },
 });
 
 export default App;

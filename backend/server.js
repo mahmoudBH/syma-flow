@@ -53,6 +53,7 @@ app.use(session({
     }
 }));
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // pour servir les images
 app.use(
   '/documents',
   express.static(path.join(__dirname, 'documents'))
@@ -78,7 +79,17 @@ const db = mysql.createConnection({
 // Chemin absolu vers pdftotext.exe
 const PDFTOTEXT = `"C:\\poppler\\bin\\pdftotext.exe"`;
 
+const profileStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // Nouveau dossier pour les photos de profil
+  },
+  filename: function (req, file, cb) {
+    // Nom unique : timestamp + extension originale
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
 
+const uploadProfile = multer({ storage: profileStorage });
 // Configuration de Multer pour gérer l'upload de documents
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -278,31 +289,41 @@ function broadcastNotification(message) {
 }
 
 
-// Route pour l'inscription avec hashage
-app.post("/signup", async (req, res) => {
-    const { name, email, password } = req.body;
+// Crée un compte admin automatiquement si aucun n'existe
+const createAdminAccount = async () => {
+    const name = "admin";
+    const email = "admin@symaflow.com";
+    const password = "admin123"; // Tu peux le modifier
+    const saltRounds = 10;
 
-    if (!name || !email || !password) {
-        return res.status(400).json({ error: "Tous les champs sont requis !" });
-    }
+    // Vérifie si un compte admin existe déjà
+    const checkQuery = "SELECT * FROM admin WHERE email = ?";
+    db.query(checkQuery, [email], async (err, results) => {
+        if (err) {
+            return console.error("Erreur lors de la vérification du compte admin :", err);
+        }
 
-    try {
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        const query = "INSERT INTO admin (name, email, password) VALUES (?, ?, ?)";
-        db.query(query, [name, email, hashedPassword], (err, result) => {
-            if (err) {
-                console.error("Erreur lors de l'inscription :", err);
-                return res.status(500).json({ error: "Erreur serveur" });
+        if (results.length === 0) {
+            try {
+                const hashedPassword = await bcrypt.hash(password, saltRounds);
+                const insertQuery = "INSERT INTO admin (name, email, password) VALUES (?, ?, ?)";
+                db.query(insertQuery, [name, email, hashedPassword], (err, result) => {
+                    if (err) {
+                        return console.error("Erreur lors de la création du compte admin :", err);
+                    }
+                    console.log("Compte admin créé avec succès !");
+                });
+            } catch (err) {
+                console.error("Erreur lors du hashage du mot de passe admin :", err);
             }
-            res.status(201).json({ message: "Utilisateur inscrit avec succès !" });
-        });
-    } catch (error) {
-        console.error("Erreur lors du hashage :", error);
-        res.status(500).json({ error: "Erreur serveur" });
-    }
-});
+        } else {
+            console.log("Le compte admin existe déjà.");
+        }
+    });
+};
+
+// Appelle cette fonction au démarrage du serveur
+createAdminAccount();
 
 // Route pour la connexion
 app.post("/login", (req, res) => {
@@ -525,6 +546,39 @@ app.get('/api/users', (req, res) => {
     });
   });
   
+// 📥 API Récupération des infos utilisateur (y compris photo)
+app.get("/api/user/:id", (req, res) => {
+  const sql = "SELECT id, name, email, phone, category, profile, photo FROM users WHERE id = ?";
+  db.query(sql, [req.params.id], (err, result) => {
+    if (err) return res.status(500).json({ error: "Erreur de récupération" });
+    if (result.length === 0) return res.status(404).json({ error: "Utilisateur non trouvé" });
+
+    const user = result[0];
+    if (user.photo) {
+      user.photo_url = `http://localhost:4000/uploads/${user.photo}`;
+    } else {
+      user.photo_url = null;
+    }
+    res.json(user);
+  });
+});
+
+// 📤 API Upload de la photo de profil
+app.post("/api/upload-photo/:id", uploadProfile.single("photo"), (req, res) => {
+  const id = req.params.id;
+  if (!req.file) {
+    return res.status(400).json({ message: "Aucune image uploadée." });
+  }
+
+  const photoFilename = req.file.filename;
+  const photoUrl = `http://localhost:4000/uploads/${photoFilename}`; // Ajuste selon dossier uploads
+
+  const sql = "UPDATE users SET photo = ? WHERE id = ?";
+  db.query(sql, [photoFilename, id], (err, result) => {
+    if (err) return res.status(500).json({ message: "Erreur serveur", err });
+    res.json({ message: "Photo mise à jour avec succès", photo_url: photoUrl });
+  });
+});
 
 // Route pour récupérer les administrateurs
 app.get('/api/admins', (req, res) => {
@@ -538,6 +592,20 @@ app.get('/api/admins', (req, res) => {
     });
   });
   
+// Update infos utilisateur (sans photo)
+app.put("/user/:id", (req, res) => {
+  const { id } = req.params;
+  const { name, email, phone } = req.body;
+
+  const sql = "UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?";
+  db.query(sql, [name, email, phone, id], (err) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+    res.json({ message: "Profil mis à jour" });
+  });
+});
 
 app.put("/update-user/:id", (req, res) => {
   const userId = req.params.id;
@@ -728,6 +796,18 @@ app.get("/categories", (req, res) => {
       res.json(results);
     });
   }); 
+
+// API pour obtenir tous les types de documents
+app.get('/api/document-types', (req, res) => {
+    const query = 'SELECT * FROM document_types';
+  
+    db.query(query, (err, result) => {
+      if (err) {
+        return res.status(500).json({ message: 'Erreur lors de la récupération des types de documents.', error: err });
+      }
+      res.status(200).json(result);
+    });
+  });
 
   // API pour ajouter un type de document
 app.post('/api/document-type', (req, res) => {
@@ -1171,7 +1251,6 @@ app.post("/projets/:id/ajouter-equipe", (req, res) => {
   });
 });
 
-
 // Récupérer tous les documents d'un projet donné
 app.get('/api/project/:id/documents', (req, res) => {
   const projectId = req.params.id;
@@ -1216,7 +1295,7 @@ app.get('/api/projects-active', (req, res) => {
 });
 
 // API pour récupérer les projets de l'utilisateur
-app.get('/api/my-projects', verifyToken, (req, res) => {
+app.get('/api/my-projects', (req, res) => {
   const userName = req.user.name;
   const sql = `
     SELECT id, nom, responsable, date_debut, date_fin, statut, budget, montant_payer, description, equipe
@@ -1269,7 +1348,6 @@ app.get("/api/project/:id/tasks", verifyToken, (req, res) => {
   );
 });
 
-
 // 2) Archive : bascule et lecture
 app.get('/api/archive', (req, res) => {
   // a) Mettre à jour le statut des projets expirés
@@ -1316,7 +1394,6 @@ app.get('/api/archive', (req, res) => {
     });
   });
 });
-
 
 // Route pour modifier les dépendances d'une tâche
 app.put("/api/taches/:id/dependencies", verifyToken, (req, res) => {
@@ -1390,8 +1467,6 @@ app.post("/api/taches", (req, res) => {
     });
   });
 });
-
-
 
 
 
@@ -2017,8 +2092,6 @@ app.get('/api/project/:id/invoices', verifyToken, (req, res) => {
 
 
 
-
-
 // multer config : uploadFacture
 app.post("/api/invoice/upload",
   verifyToken,
@@ -2071,6 +2144,7 @@ app.post("/api/invoice/upload",
     });
   }
 );
+
 
 
 // ------ Partie Mobile -----
@@ -2183,11 +2257,25 @@ app.post('/api/ajouter-reunion', (req, res) => {
   });
 });
 
-app.get('/api/reunions', (req, res) => {
-  const participantName = req.query.participant; // Récupérer le nom du participant depuis la requête
 
+
+app.get("/api/reunions", (req, res) => {
+  const participantName = req.query.participant; // ex. ?participant=koussay ayadi
+
+  // 1. On récupère d’abord toutes les réunions avec le champ 'responsable' venant de la table project
   const query = `
-    SELECT * FROM reunion;
+    SELECT 
+      r.id_reunion,
+      r.id_project,
+      r.titre,
+      r.date_reunion,
+      r.lieu,
+      r.participants,
+      r.description,
+      r.created_at,
+      p.responsable
+    FROM reunion r
+    JOIN project p ON r.id_project = p.id;
   `;
 
   db.query(query, (err, results) => {
@@ -2196,21 +2284,50 @@ app.get('/api/reunions', (req, res) => {
       return res.status(500).json({ error: "Erreur serveur" });
     }
 
-    // Convertir les participants JSON en tableau JavaScript et filtrer les réunions
-    const reunions = results
-      .map(reunion => ({
-        ...reunion,
-        participants: reunion.participants ? JSON.parse(reunion.participants) : [],
-        date_reunion: reunion.date_reunion ? new Date(reunion.date_reunion).toISOString() : null, // Formater la date
-      }))
-      .filter(reunion => {
-        // Si aucun participant n'est spécifié dans la requête, retourner toutes les réunions
-        if (!participantName) return true;
+    // 2. On parcourt les résultats pour :
+    //    • parser participants (stocké en JSON)
+    //    • inclure la date_reunion au format ISO
+    //    • garder aussi le champ 'responsable' pour le filtrage
+    const reunions = results.map((row) => {
+      let participantsArray = [];
+      try {
+        // On s'attend à ce que row.participants soit une chaîne JSON valide, ex.:
+        // "[{\"id\":72,\"name\":\"koussay ayadi\"},{\"id\":70,\"name\":\"Moez Hajjaji\"}]"
+        participantsArray = row.participants
+          ? JSON.parse(row.participants)
+          : [];
+      } catch (parseError) {
+        console.warn("Impossible de parser participants pour réunion", row.id_reunion);
+      }
 
-        // Vérifier si le participant est présent dans la réunion
-        return reunion.participants.some(participant => participant.name === participantName);
-      });
+      return {
+        id_reunion: row.id_reunion,
+        id_project: row.id_project,
+        titre: row.titre,
+        date_reunion: row.date_reunion
+          ? new Date(row.date_reunion).toISOString()
+          : null,
+        lieu: row.lieu,
+        participants: participantsArray,   // tableau d’objets { id, name, ... }
+        description: row.description,
+        created_at: row.created_at,
+        responsable: row.responsable,     // champ récupéré via la jointure
+      };
+    })
+    // 3. Si un participant est demandé dans la query (participantName),
+    //    on filtre : (a) s’il est dans 'participants', ou (b) s’il est le 'responsable'
+    .filter((reunion) => {
+      if (!participantName) return true; // pas de filtre → on renvoie toutes
+      // a) Vérifier si participantName figure dans le tableau 'participants'
+      const inList = reunion.participants.some(
+        (p) => p.name === participantName
+      );
+      // b) Vérifier si participantName === responsable du projet
+      const isResponsable = reunion.responsable === participantName;
+      return inList || isResponsable;
+    });
 
+    // 4. On renvoie le résultat filtré
     res.json(reunions);
   });
 });

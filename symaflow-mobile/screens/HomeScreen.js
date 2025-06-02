@@ -66,15 +66,15 @@ const HomeScreen = ({ navigation }) => {
     Admin: [
       { name: "Home", label: "Accueil", icon: "home" },
       { name: "Profile", label: "Profil", icon: "person" },
-      { name: "Ajouter Projet", label: "Nouveau Projet", icon: "add-box" },
-      { name: "Add Task", label: "Nouvelle Tâche", icon: "add-task" },
+      { name: "Ajouter Projet", label: "Ajouter Projet", icon: "add-box" },
+      { name: "Add Task", label: "Add Task", icon: "add-task" },
       { name: "project meeting", label: "Réunion", icon: "group" },
       { name: "projet", label: "Projets", icon: "folder" },
       { name: "Task", label: "Tâches", icon: "assignment" },
       { name: "Manage Users", label: "Utilisateurs", icon: "manage-accounts" },
       { name: "Calendrier", label: "Calendrier", icon: "calendar-today" },
       { name: "project performance", label: "Performances", icon: "show-chart" },
-      { name: "anomalies ", label: "Anomalies", icon: "warning" },
+      { name: "Anomalies", label: "Anomalies", icon: "warning" },
     ],
     Utilisateur: [
       { name: "Home", label: "Accueil", icon: "home" },
@@ -95,7 +95,7 @@ const HomeScreen = ({ navigation }) => {
     return (
       <TouchableOpacity
         style={[styles.card, { maxWidth: cardMaxWidth }]}
-        onPress={() => navigation.navigate(item.name)}
+        onPress={() => navigation.navigate(item.name.trim())}
         activeOpacity={0.9}
       >
         <View style={styles.iconWrapper}>

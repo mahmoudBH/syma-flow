@@ -21,6 +21,8 @@ import AddTask from "./components/pages/Project/AddTask";
 import TaskList from "./components/pages/Project/Task";
 import TaskFlow from "./components/pages/Project/TaskFlow";
 import DeploymentDiagram from"./components/pages/Project/DeploymentDiagram";
+import PredictDuration from "./components/pages/Analyse/PredictDuration";
+
 import PrivateRoute from "./components/context/PrivateRoute";
 import Layout from "./components/Layout/Layout";
 import { ThemeProvider } from "./components/context/ThemeProvider";
@@ -71,7 +73,8 @@ const App = () => {
             <Route path="/deployment" element={<DeploymentDiagram />} />
             <Route path="/fracture/signature" element={<UploadAndSignPdf />} /> {/* Nouvelle page pour l'upload du PDF */}
             <Route path="/project/gantt" element={<GanttPage />} /> {/* Nouvelle page pour Gantt */}
-            <Route path="/tasks" element={<TasksPage />} /> {/* Nouvelle route pour la page des tâches */}
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/predict" element={<PredictDuration />} /> 
 
           </Route>
         </Routes>
