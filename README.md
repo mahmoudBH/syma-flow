@@ -1,71 +1,190 @@
-# Getting Started with Create React App
+# 🚀 SymaFlow – Project & Workflow Management Platform  
+SymaFlow est une plateforme complète de gestion de projets, intégrant une application **Web**, une application **Mobile**, et un **service IA** pour l’analyse des données et la prédiction d’avancement.  
+Elle permet aux équipes (Admin, Chefs de projets, Développeurs, Designers, Testeurs…) de collaborer efficacement grâce à un ensemble d’outils modernes.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+---
 
-## Available Scripts
+## 📌 Table des matières
+- [🎯 Objectif du projet](#-objectif-du-projet)
+- [🏗️ Architecture](#️-architecture)
+- [👥 Rôles et utilisateurs](#-rôles-et-utilisateurs)
+- [⚙️ Fonctionnalités](#️-fonctionnalités)
+  - [Application Web](#application-web)
+  - [Application Mobile](#application-mobile)
+  - [Service IA](#service-ia)
+- [🖼️ Captures d’écran](#️-captures-décran)
+- [🛠️ Technologies](#️-technologies)
+- [📦 Installation](#-installation)
+- [📄 Licence](#-licence)
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## 🎯 Objectif du projet
+SymaFlow vise à offrir une solution **tout-en-un** pour :
+- La gestion des projets  
+- Le suivi des tâches  
+- La gestion documentaire  
+- La gestion des factures  
+- La collaboration entre équipes  
+- L’analyse intelligente via IA (Python + Flask)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🏗️ Architecture
+symaflow/
+│── backend/ → API Node.js + Express + MySQL
+│── ml_service/ → Service IA (Python + Flask)
+│── src/ → Application Web (React.js)
+│── symaflow-mobile/ → Application Mobile (React Native - Expo)
+│── docs/ → Images & documentation
 
-### `npm test`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 👥 Rôles et utilisateurs
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 🟣 **Administrateur (Admin – Partie Web)**
+- Gestion des utilisateurs et rôles  
+- Gestion complète des projets  
+- Gestion documentaire  
+- Gestion des factures  
+- Tableau de bord + statistiques avancées  
+- Assistant IA d’analyse des données  
+- Support interne  
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 🔵 **Chef de projet**
+- Gestion des projets assignés  
+- Gestion des tâches & membres  
+- Suivi d'avancement & prédictions  
+- Accès documents & factures  
+- Messagerie support  
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 🟢 **Utilisateur (Développeur / Designer / Testeur…)**
+- Voir tâches assignées  
+- Mettre à jour le statut des tâches  
+- Voir documents  
+- Diagramme de Gantt  
+- Support  
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## ⚙️ Fonctionnalités
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 🖥️ **Application Web**
+- Authentification & gestion comptes  
+- Dashboard complet  
+- Gestion des projets / membres / tâches  
+- Gestion des documents  
+- Gestion des factures (avec signature électronique)  
+- Diagramme Gantt  
+- Statistiques  
+- Assistant IA pour l’analyse des données  
+- Mode sombre 🌙  
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 📱 **Application Mobile**
+- Vue projets & tâches  
+- Ajout et mise à jour des tâches  
+- Calendrier & réunions  
+- Notifications  
+- Support interne  
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 🤖 **Service IA**
+- Analyse des données du projet  
+- Prédiction du taux d’avancement  
+- Détection des retards  
+- Insights intelligents (Python + Flask)  
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🖼️ Captures d’écran
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 🔐 **Authentification**
+![Login](./docs/Login.png)
 
-### Code Splitting
+### 🏠 **Dashboard (Admin)**
+![Dashboard](./docs/dashboard%20admin.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 📊 **Statistiques**
+![Statistiques](./docs/statistique.png)
 
-### Analyzing the Bundle Size
+### 📄 **Ajouter un document**
+![Ajouter Document](./docs/ajouter%20un%20document.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### 📌 **Ajouter une tâche**
+![Ajouter Tâche](./docs/ajouter%20une%20tache.png)
 
-### Making a Progressive Web App
+### 📁 **Tâche**
+![Tâche](./docs/tache.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### 🔁 **Flow des tâches**
+![Flow](./docs/flow%20des%20taches.png)
 
-### Advanced Configuration
+### 🧠 **Assistant IA**
+![Assistant IA](./docs/assistant%20ia.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### 📈 **Diagramme de Gantt**
+![Gantt](./docs/diagramme%20de%20gantt.png)
 
-### Deployment
+### 🧾 **Factures**
+![Factures](./docs/factures.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### 🧱 **Étapes du projet**
+![Étapes](./docs/etape%20de%20projet.png)
 
-### `npm run build` fails to minify
+### 🌙 **Mode Sombre**
+![Mode Dark](./docs/mode%20dark.png)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-# Symaflow
+---
+
+## 🛠️ Technologies utilisées
+
+### **Backend**
+- Node.js  
+- Express  
+- MySQL  
+- JWT  
+- Multer  
+
+### **IA**
+- Python  
+- Flask  
+- NumPy / Pandas / Scikit-learn  
+
+### **Web**
+- React.js  
+- Redux Toolkit  
+- Axios  
+
+### **Mobile**
+- React Native (Expo)  
+- React Navigation  
+
+---
+
+## 📦 Installation
+
+### 1️⃣ Lancer le Backend
+bash
+cd backend
+npm install
+npm start
+
+2️⃣ Lancer le service IA
+cd ml_service
+pip install -r requirements.txt
+python app.py
+
+3️⃣ Lancer la partie Web
+cd src
+npm install
+npm start
+
+4️⃣ Lancer l’application Mobile
+cd symaflow-mobile
+npm install
+expo start
+
+📄 Licence
+
+Projet développé à des fins académiques et professionnelles.
+© 2025 Mahmoud Bousbih.
